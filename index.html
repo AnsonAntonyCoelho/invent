@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Product Inventory Manager</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #eef2f1; color: #1d2b2a; }
+    header { background: #0f4c47; color: #fff; padding: 1.5rem 1rem; text-align: center; }
+    header h1 { margin: 0 0 0.25rem; font-size: 1.6rem; }
+    header p { margin: 0; opacity: 0.85; font-size: 0.95rem; }
+    main { max-width: 1000px; margin: 0 auto; padding: 1rem 1rem 3rem; display: grid; gap: 1rem; }
+    section { background: #fff; border-radius: 10px; padding: 1rem 1.1rem; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+    #file-warning { background: #fff3cd; color: #664d03; padding: 0.75rem 1rem; text-align: center; }
+
+    #product-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; align-items: end; }
+    label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; font-weight: 600; }
+    label.check { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 500; }
+    input[type="text"], input[type="number"] { font: inherit; padding: 0.5rem 0.6rem; border: 1px solid #b8c4c2; border-radius: 6px; width: 100%; }
+    input:focus-visible, button:focus-visible { outline: 2px solid #0f4c47; outline-offset: 2px; }
+    button { font: inherit; cursor: pointer; border-radius: 6px; padding: 0.5rem 0.9rem; border: 1px solid #0f4c47; background: #0f4c47; color: #fff; }
+
+    .controls { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; justify-content: space-between; }
+    .filters, .discount { display: flex; gap: 0.5rem; align-items: center; }
+    .filters button { background: #fff; color: #0f4c47; }
+    .filters button[aria-pressed="true"] { background: #0f4c47; color: #fff; }
+    .discount input { width: 90px; }
+    .discount button { background: #fff; color: #0f4c47; }
+
+    #message { min-height: 1.4rem; font-size: 0.92rem; }
+    #message.error { color: #b3261e; }
+    #message.ok { color: #1b6b3a; }
+    #product-count { font-size: 0.85rem; color: #51615f; margin-bottom: 0.5rem; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid #e1e8e6; font-size: 0.9rem; vertical-align: middle; }
+    th { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #51615f; }
+
+    .badge { padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.78rem; font-weight: 600; border: 0; }
+    .badge.in { background: #d7f0df; color: #14532d; }
+    .badge.out { background: #fbdcd9; color: #8c1d18; }
+    .chip { display: inline-block; background: #e3efed; color: #0f4c47; border-radius: 4px; padding: 0.1rem 0.45rem; margin: 0 0.25rem 0.2rem 0; font-size: 0.78rem; }
+    .remove { background: #b3261e; border-color: #b3261e; padding: 0.25rem 0.6rem; font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <p id="file-warning" hidden>
+    This page was opened as a local file, so the browser blocks the script. Open it through
+    VS Code Live Server or your GitHub Pages link instead.
+  </p>
+
+  <header>
+    <h1>Product Inventory Manager</h1>
+    <p>Add products, apply discounts and keep track of stock.</p>
+  </header>
+
+  <main>
+    <section aria-labelledby="add-heading">
+      <h2 id="add-heading">Add New Product</h2>
+      <form id="product-form">
+        <label>Product ID (number or text, optional)
+          <input id="product-id" type="text" placeholder="e.g. 301 or P-301" />
+        </label>
+        <label>Product Name
+          <input id="product-name" type="text" placeholder="e.g. Wall Clock" required />
+        </label>
+        <label>Price (INR)
+          <input id="product-price" type="number" min="0" step="0.01" placeholder="e.g. 499" required />
+        </label>
+        <label>Tags (comma separated)
+          <input id="product-tags" type="text" placeholder="e.g. Home, Decor" />
+        </label>
+        <label class="check"><input id="product-instock" type="checkbox" checked /> In stock</label>
+        <button type="submit">Add Product</button>
+      </form>
+    </section>
+
+    <section class="controls" aria-label="Filter and discount">
+      <div class="filters">
+        <button id="filter-all" type="button" aria-pressed="true">Show All</button>
+        <button id="filter-available" type="button" aria-pressed="false">Available Only</button>
+      </div>
+      <div class="discount">
+        <label for="discount-input">Discount %</label>
+        <input id="discount-input" type="number" min="0" max="100" step="1" value="10" />
+        <button id="discount-apply" type="button">Apply to All</button>
+      </div>
+    </section>
+
+    <div id="message" role="status"></div>
+
+    <section aria-labelledby="list-heading">
+      <h2 id="list-heading">Inventory List</h2>
+      <div id="product-count"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>ID</th><th>Name</th><th>Price</th><th>Status</th><th>Tags</th><th>Discounted Price</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="product-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    if (location.protocol === "file:") {
+      document.getElementById("file-warning").hidden = false;
+    }
+  </script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
